@@ -112,7 +112,7 @@ class ModelRenderer:
             
     #     self.models[name]['model_matrix'] = model
         
-    def render(self, camera_pos=(0, 0, -100), fov=45, near=0.1, far=10000):
+    def render(self, camera_pos=(0, 0, -10), fov=45, near=0.1, far=10):
         """Основной цикл рендеринга"""
         while not glfw.window_should_close(self.window):
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
@@ -120,7 +120,7 @@ class ModelRenderer:
             # Матрицы вида и проекции
             view = glm.translate(glm.mat4(1.0), glm.vec3(*camera_pos))
             projection = glm.perspective(glm.radians(fov), 
-                                      1000/600, near, far)
+                                      10/6, near, far)
             angle = glfw.get_time()
             model_matrix = np.identity(4, dtype=np.float32)
             model_matrix = glm.scale(model_matrix, glm.vec3(1, 1, 1))
