@@ -5,11 +5,12 @@ from readfile import Data
 
 # Создаем рендерер
 renderer = ModelRenderer()
-data = Data("wrls\\Detal_1.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
+data = Data("wrls\\aabb_tests.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
 
 for model in data.model_list:
-    # print(model.indices)
-    renderer.load_model(model.get_vertex_buffer(), model.indices, data.max_coord)
+
+    renderer.load_model(model.get_vertex_buffer(), model.indices, data.max_coord*5)
+
     
 # Запускаем рендеринг
 try:

@@ -12,9 +12,9 @@ class Model:
         
         if colors is None:
             # Автогенерация цветов если не указаны
-            # self.colors = np.random.rand(len(vertices), 3).astype(np.float32)
-            color = np.random.rand(1, 3)
-            self.colors = (color*np.ones((len(vertices), 3))).astype(np.float32)
+            self.colors = np.random.rand(len(vertices), 3).astype(np.float32)
+            # color = np.random.rand(1, 3)
+            # self.colors = (color*np.ones((len(vertices), 3))).astype(np.float32)
         else:
             self.colors = np.array(colors, dtype=np.float32)
             

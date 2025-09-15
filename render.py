@@ -112,7 +112,7 @@ class ModelRenderer:
             
     #     self.models[name]['model_matrix'] = model
         
-    def render(self, camera_pos=(0, 0, -10), fov=45, near=0.1, far=10):
+    def render(self, camera_pos=(0, 0, -1), fov=45, near=0.1, far=10):
         """Основной цикл рендеринга"""
         while not glfw.window_should_close(self.window):
             glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
