@@ -3,7 +3,7 @@ import numpy as np
 
 class Data:
     def __init__(self, file):
-        self.model_list, self.max_coord = self.parse_wrl_Solid(file)
+        self.model_list, self.max_coord = self.parse_wrl_TFlex(file)
     
     def parse_wrl_Solid(self, file_path):
         with open(file_path, 'r') as f:
