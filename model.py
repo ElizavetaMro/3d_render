@@ -14,9 +14,11 @@ class Model:
             # Автогенерация цветов если не указаны
             # self.colors = np.random.rand(len(vertices), 3).astype(np.float32)
             color = np.random.rand(1, 3)
+            print(color)
             self.colors = (color*np.ones((len(vertices), 3))).astype(np.float32)
+            
         else:
-            self.colors = np.array(colors, dtype=np.float32)
+            self.colors = (np.array(colors)*np.ones((len(vertices),3))).astype(np.float32)
             
         # Объединение вершин и цветов в один массив
         self.vertex_data = np.zeros(len(vertices), dtype=[
