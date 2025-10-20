@@ -129,6 +129,7 @@ class Data:
                     
                         indexs_list = [el for els in indexs_list for el in els]
                         model_list += [Model(points_list, indexs_list, color)]
+                        print(points_list)
                         max_coord_new = max(max(points_list))
                         max_coord = max_coord if max_coord > max_coord_new else max_coord_new
                 

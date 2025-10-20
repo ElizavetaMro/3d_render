@@ -5,7 +5,7 @@ from readfile import Data
 
 # Создаем рендерер
 renderer = ModelRenderer()
-data = Data("wrls\\Example2.0.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
+data = Data("wrls\\Detal_4.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
 
 for model in data.model_list:
 
