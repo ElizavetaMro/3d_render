@@ -2,17 +2,21 @@ from render import ModelRenderer
 # from model import Model
 from readfile import Data
 # import glfw
+import time
 
+start_time = time.time()
 # Создаем рендерер
 renderer = ModelRenderer()
-data = Data("wrls\\Detal_4.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
+data = Data("wrls\\aabb_tests.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
 
-for model in data.model_list:
 
-    renderer.load_model(model.get_vertex_buffer(), model.indices, data.max_coord*5)
+renderer.load_models(data.model_list, k=2)
 
-    
+end_time = time.time()
+execution_time = end_time-start_time
+print(f"{execution_time:.4f}")
 # Запускаем рендеринг
+
 try:
     renderer.render()
 finally:

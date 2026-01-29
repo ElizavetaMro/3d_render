@@ -9,7 +9,7 @@ class ModelRenderer:
     def __init__(self, window_width=800, window_height=600, title="3D Renderer"):
         self.window = None
         self.shader = None
-        self.models = [] # список моделей
+        self.model = None # список моделей
         self.init_glfw(window_width, window_height, title)
         self.init_shaders()
         
@@ -60,9 +60,7 @@ class ModelRenderer:
             compileShader(vertex_src, GL_VERTEX_SHADER),
             compileShader(fragment_src, GL_FRAGMENT_SHADER)
         )
-    
-
-        
+           
     def load_model(self, vertices, indices, normalize = 1):
         """Загружает модель в память GPU"""
         normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1])
@@ -88,43 +86,85 @@ class ModelRenderer:
         glEnableVertexAttribArray(1)  # Цвет
         glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * 4, ctypes.c_void_p(3 * 4))
         
-        self.models += [{
+        self.model = {
             'VAO': VAO,
             'VBO': VBO,
             'EBO': EBO,
             'indices': indices,
-        }]
+        }
         
-    # def set_model_transform(self, name, position=None, rotation=None, scale=None):
-    #     """Устанавливает трансформации для модели"""
-    #     if name not in self.models:
-    #         raise ValueError(f"Model {name} not found")
-            
-    #     model = np.identity(4, dtype=np.float32)
+    def load_models(self, models, k=1.5):
+        """Загрузка нескольких моделей одним батчем"""
+        all_vertices = np.concatenate([m.get_vertex_buffer() for m in models])
+        all_indices = np.concatenate([m.indices + i*len(m.vertices) for i, m in enumerate(models)])
+        normalize = max(all_vertices.min(), all_vertices.max(), key=abs)*k
+        normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1])
+        all_vertices = (all_vertices/normal_vector).astype(np.float32)
+
+        VAO = glGenVertexArrays(1)
+        VBO = glGenBuffers(1)
+        EBO = glGenBuffers(1)
         
-    #     if position:
-    #         model = glm.translate(model, glm.vec3(*position))
-    #     if rotation:
-    #         angle, axis = rotation
-    #         model = glm.rotate(model, angle, glm.vec3(*axis))
-    #     if scale:
-    #         model = glm.scale(model, glm.vec3(*scale))
-            
-    #     self.models[name]['model_matrix'] = model
+        glBindVertexArray(VAO)
         
-    def render(self, camera_pos=(0, 0, -1), fov=45, near=0.1, far=10):
+        # Вершинный буфер
+        glBindBuffer(GL_ARRAY_BUFFER, VBO)
+        glBufferData(GL_ARRAY_BUFFER, all_vertices.nbytes, all_vertices, GL_STATIC_DRAW)
+        
+        # Буфер индексов
+        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
+        glBufferData(GL_ELEMENT_ARRAY_BUFFER, all_indices.nbytes, all_indices, GL_STATIC_DRAW)
+        
+        # Атрибуты вершин
+        glEnableVertexAttribArray(0)  # Позиция
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * 4, ctypes.c_void_p(0))
+        
+        glEnableVertexAttribArray(1)  # Цвет
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * 4, ctypes.c_void_p(3 * 4))
+        
+        self.model = {
+            'VAO': VAO,
+            'VBO': VBO,
+            'EBO': EBO,
+            'indices': all_indices,
+        }
+        
+    def key_callback(self, window, key, scancode, action, mods):
+        global rotation_x, rotation_y
+        if action == glfw.PRESS or action == glfw.REPEAT:
+            if key == glfw.KEY_UP:
+                rotation_x -= 5
+            elif key == glfw.KEY_DOWN:
+                rotation_x += 5
+            elif key == glfw.KEY_LEFT:
+                rotation_y -= 5
+            elif key == glfw.KEY_RIGHT:
+                rotation_y += 5
+            elif key == glfw.KEY_ESCAPE:
+                glfw.set_window_should_close(window, True)
+
+    def render(self, camera_pos=(0, 0, -1), fov=60, near=0.01, far=2):
         """Основной цикл рендеринга"""
+        global rotation_x, rotation_y
+        rotation_x = 0
+        rotation_y = 0
+        glfw.set_key_callback(self.window, self.key_callback)
+
         while not glfw.window_should_close(self.window):
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-            
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)    
+                    
             # Матрицы вида и проекции
             view = glm.translate(glm.mat4(1.0), glm.vec3(*camera_pos))
             projection = glm.perspective(glm.radians(fov), 
-                                      10/6, near, far)
-            angle = glfw.get_time()
+                                      8/6, near, far)
+            
+            #ПОМЕНЯТЬ
+            # angleX = glfw.get_time()
+
             model_matrix = np.identity(4, dtype=np.float32)
             model_matrix = glm.scale(model_matrix, glm.vec3(1, 1, 1))
-            model_matrix = glm.rotate(model_matrix, angle, glm.vec3(0.5, 1.0, 0.0))
+            model_matrix = glm.rotate(model_matrix, np.radians(rotation_x), glm.vec3(1.0, 0.0, 0.0))
+            model_matrix = glm.rotate(model_matrix, np.radians(rotation_y), glm.vec3(0.0, 0.0, 0.1))
         
             glUseProgram(self.shader)
             
@@ -147,22 +187,22 @@ class ModelRenderer:
             )
             
             # Рендеринг всех моделей
-            for model in self.models: 
-                glBindVertexArray(model['VAO'])
-                glDrawElements(
-                    GL_TRIANGLES, 
-                    len(model['indices']), 
-                    GL_UNSIGNED_INT, 
-                    None
-                )
+            glBindVertexArray(self.model['VAO'])
+            glDrawElements(
+                GL_TRIANGLES, 
+                len(self.model['indices']), 
+                GL_UNSIGNED_INT, 
+                None
+            )
             glfw.swap_buffers(self.window)
-            glfw.poll_events()
+            glfw.wait_events()  
+
             
     def cleanup(self):
         """Освобождение ресурсов"""
         glDeleteProgram(self.shader)
-        for model in self.models:
-            glDeleteVertexArrays(1, [model['VAO']])
-            glDeleteBuffers(1, [model['VBO']])
-            glDeleteBuffers(1, [model['EBO']])
+        
+        glDeleteVertexArrays(1, [self.model['VAO']])
+        glDeleteBuffers(1, [self.model['VBO']])
+        glDeleteBuffers(1, [self.model['EBO']])
         glfw.terminate()

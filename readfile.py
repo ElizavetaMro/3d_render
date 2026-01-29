@@ -1,9 +1,11 @@
+## READ .wrl-files from SolidWorks and T-Flex
 from model import Model
 import re
 
+
 class Data:
     def __init__(self, file):
-        self.model_list, self.max_coord = self.parse_wrl(file)
+        self.model_list = self.parse_wrl(file)
     
     def parse_wrl_Solid(self, file_path):
         with open(file_path, 'r') as f:
@@ -43,11 +45,9 @@ class Data:
                                     )
                     indexs_list = [el for els in indexs_list for el in els]
                     model_list += [Model(points_list, indexs_list)]
-                    max_coord_new = max(max(points_list))
-                    max_coord = max_coord if max_coord > max_coord_new else max_coord_new
                     continue
                 indexs = ' '.join([indexs, line])
-        return model_list, max_coord
+        return model_list
     
     def parse_wrl_TFlex(self, file_path):
         with open(file_path, 'r') as f:
@@ -57,7 +57,8 @@ class Data:
         flag_index = 0
         points = ''
         indexs = ''
-
+        transform_dict = {}
+        flag_transform = 0
         model_list = []
         max_coord = 0
 
@@ -98,6 +99,13 @@ class Data:
                         flag_mat_def=0
                         flag_app_def=0
                         continue
+            if re.search(r"DEF T.* Transform", line):
+                flag_transform = 1
+                continue
+            if flag_transform != 0:
+                key = re.search(r"\w+", line)[0]
+                transform_dict[key] = list(map(float, line[len(key)+1:].split()))
+                if key == "translation" : flag_transform = 0
 
             #READ COORDS AND INDEXS
             if line == 'point':
@@ -128,13 +136,8 @@ class Data:
                                         )
                     
                         indexs_list = [el for els in indexs_list for el in els]
-                        model_list += [Model(points_list, indexs_list, color)]
-                        print(points_list)
-                        max_coord_new = max(max(points_list))
-                        max_coord = max_coord if max_coord > max_coord_new else max_coord_new
-                
-
-        return model_list, max_coord
+                        model_list += [Model(points_list, indexs_list, color, transform_dict)]  
+        return model_list
 
     def parse_wrl(self, file_path):
         with open(file_path, 'r') as f:
@@ -144,8 +147,7 @@ class Data:
         return self.parse_wrl_Solid(file_path)
             
             
-
-
 if __name__ == "__main__":
-    data = Data("wrls\\Example2.0.wrl")
+    data = Data("wrls\\Example2.0.wrl") # Example2.0.wrl")
     print(len(data.model_list))
+    print(data.max_coord)
