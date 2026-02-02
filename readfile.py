@@ -14,10 +14,11 @@ class Data:
         flag_point = 0
         flag_index = 0
         model_list = []
-        max_coord = 0
-
+        color = None
         for line in lines:
             line = line[:-1]
+            if "diffuseColor" in line:
+                color = list(map(float,line.split(' ')[-3:]))
             if line == 'point [':
                 points = ''
                 indexs = ''
@@ -44,7 +45,7 @@ class Data:
                                         )
                                     )
                     indexs_list = [el for els in indexs_list for el in els]
-                    model_list += [Model(points_list, indexs_list)]
+                    model_list += [Model(points_list, indexs_list, color)]
                     continue
                 indexs = ' '.join([indexs, line])
         return model_list

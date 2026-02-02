@@ -23,7 +23,7 @@ def rotation3D(coord, tranparam):
 
 class Model:
     def __init__(self, vertices, indices, 
-                 colors=None, transform = {"center":[0, 0, 0],
+                 color=None, transform = {"center":[0, 0, 0],
                  "rotation" : [0, 0, 1, 0], "scale" : [1, 1, 1],
                  "scaleOrientation" : [0, 0, 1, 0],
                  "translation" : [0, 0, 0]}):
@@ -40,14 +40,12 @@ class Model:
                                         transform['rotation']) + transform['center'] + transform['translation']
         else:  self.t_vertices = self.vertices + transform['translation']
 
-        if colors is None:
+        if color is None:
             # Автогенерация цветов если не указаны
             # self.colors = np.random.rand(len(vertices), 3).astype(np.float32)
             color = np.random.rand(1, 3)
-            self.colors = (color*np.ones((len(vertices), 3))).astype(np.float32)
-            
-        else:
-            self.colors = (np.array(colors)*np.ones((len(vertices),3))).astype(np.float32)
+
+        self.colors = (color*np.ones((len(vertices),3))).astype(np.float32)
             
         # Объединение вершин и цветов в один массив
         self.vertex_data = np.zeros(len(vertices), dtype=[

@@ -96,10 +96,16 @@ class ModelRenderer:
     def load_models(self, models, k=1.5):
         """Загрузка нескольких моделей одним батчем"""
         all_vertices = np.concatenate([m.get_vertex_buffer() for m in models])
-        all_indices = np.concatenate([m.indices + i*len(m.vertices) for i, m in enumerate(models)])
+        step_indices = [0]
+        for i in range(len(models)-1):
+            new_add = step_indices[-1] + len(models[i].vertices)
+            step_indices += [new_add]
+
+        all_indices = np.concatenate([m.indices + step_indices[i] for i, m in enumerate(models)])
         normalize = max(all_vertices.min(), all_vertices.max(), key=abs)*k
         normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1])
         all_vertices = (all_vertices/normal_vector).astype(np.float32)
+
 
         VAO = glGenVertexArrays(1)
         VBO = glGenBuffers(1)
