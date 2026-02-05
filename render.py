@@ -9,7 +9,8 @@ class ModelRenderer:
     def __init__(self, window_width=800, window_height=600, title="3D Renderer"):
         self.window = None
         self.shader = None
-        self.model = None # список моделей
+        self.model = None
+
         self.init_glfw(window_width, window_height, title)
         self.init_shaders()
         
@@ -25,6 +26,10 @@ class ModelRenderer:
         glfw.make_context_current(self.window)
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LESS)
+
+
+
+
         
     def init_shaders(self):
         vertex_src = """
@@ -61,38 +66,6 @@ class ModelRenderer:
             compileShader(fragment_src, GL_FRAGMENT_SHADER)
         )
            
-    def load_model(self, vertices, indices, normalize = 1):
-        """Загружает модель в память GPU"""
-        normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1])
-        vertices = (vertices/normal_vector).astype(np.float32)
-        VAO = glGenVertexArrays(1)
-        VBO = glGenBuffers(1)
-        EBO = glGenBuffers(1)
-        
-        glBindVertexArray(VAO)
-        
-        # Вершинный буфер
-        glBindBuffer(GL_ARRAY_BUFFER, VBO)
-        glBufferData(GL_ARRAY_BUFFER, vertices.nbytes, vertices, GL_STATIC_DRAW)
-        
-        # Буфер индексов
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, indices.nbytes, indices, GL_STATIC_DRAW)
-        
-        # Атрибуты вершин
-        glEnableVertexAttribArray(0)  # Позиция
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * 4, ctypes.c_void_p(0))
-        
-        glEnableVertexAttribArray(1)  # Цвет
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * 4, ctypes.c_void_p(3 * 4))
-        
-        self.model = {
-            'VAO': VAO,
-            'VBO': VBO,
-            'EBO': EBO,
-            'indices': indices,
-        }
-        
     def load_models(self, models, k=1.5):
         """Загрузка нескольких моделей одним батчем"""
         all_vertices = np.concatenate([m.get_vertex_buffer() for m in models])
@@ -134,7 +107,8 @@ class ModelRenderer:
             'EBO': EBO,
             'indices': all_indices,
         }
-        
+
+    # обработка клавиш поворота и escape   
     def key_callback(self, window, key, scancode, action, mods):
         global rotation_x, rotation_y
         if action == glfw.PRESS or action == glfw.REPEAT:
@@ -149,28 +123,42 @@ class ModelRenderer:
             elif key == glfw.KEY_ESCAPE:
                 glfw.set_window_should_close(window, True)
 
-    def render(self, camera_pos=(0, 0, -1), fov=60, near=0.01, far=2):
+    # обработка приближения и удаления
+    def scroll_callback(self, window, xoffset, yoffset):
+        global camera_pos
+        if yoffset > 0:
+           camera_pos[-1] += 0.1
+        else: camera_pos[-1] -= 0.1
+
+    def render(self, fov=60, near=0.01, far=2):
         """Основной цикл рендеринга"""
-        global rotation_x, rotation_y
+        global rotation_x, rotation_y, camera_pos
         rotation_x = 0
         rotation_y = 0
+        camera_pos= [0, 0, -1]
         glfw.set_key_callback(self.window, self.key_callback)
+        glfw.set_scroll_callback(self.window, self.scroll_callback)
 
         while not glfw.window_should_close(self.window):
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)    
-                    
+            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+            glLight(GL_LIGHT0, GL_POSITION, [1, 1, 1])
+            glLightfv(GL_LIGHT0, GL_DIFFUSE, [1, 1, 1, 1])
+
+
             # Матрицы вида и проекции
             view = glm.translate(glm.mat4(1.0), glm.vec3(*camera_pos))
+            view = glm.rotate(view, np.radians(rotation_x), glm.vec3(1.0, 0.0, 0.0))
+            view = glm.rotate(view, np.radians(rotation_y), glm.vec3(0.0, 0.0, 0.1))
+        
+
             projection = glm.perspective(glm.radians(fov), 
                                       8/6, near, far)
             
-            #ПОМЕНЯТЬ
-            # angleX = glfw.get_time()
-
+            #модель вертится
             model_matrix = np.identity(4, dtype=np.float32)
             model_matrix = glm.scale(model_matrix, glm.vec3(1, 1, 1))
-            model_matrix = glm.rotate(model_matrix, np.radians(rotation_x), glm.vec3(1.0, 0.0, 0.0))
-            model_matrix = glm.rotate(model_matrix, np.radians(rotation_y), glm.vec3(0.0, 0.0, 0.1))
+            # model_matrix = glm.rotate(model_matrix, np.radians(rotation_x), glm.vec3(1.0, 0.0, 0.0))
+            # model_matrix = glm.rotate(model_matrix, np.radians(rotation_y), glm.vec3(0.0, 0.0, 0.1))
         
             glUseProgram(self.shader)
             

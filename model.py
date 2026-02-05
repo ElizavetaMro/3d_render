@@ -34,11 +34,15 @@ class Model:
         transform: словарь, в котором указаны параметры трансформации модели
         """
         self.vertices = np.array(vertices, dtype=np.float32) 
+        # self.normals = np.array(normal, dtype=np.float32) 
         self.indices = np.array(indices, dtype=np.uint32)
         if transform['rotation'][-1] != 0:
             self.t_vertices = rotation3D(self.vertices - transform['center'],
                                         transform['rotation']) + transform['center'] + transform['translation']
-        else:  self.t_vertices = self.vertices + transform['translation']
+            # self.normals = rotation3D(self.normals,
+            #                             transform['rotation'])
+        else:  
+            self.t_vertices = self.vertices + transform['translation']
 
         if color is None:
             # Автогенерация цветов если не указаны

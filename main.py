@@ -7,8 +7,7 @@ import time
 start_time = time.time()
 # Создаем рендерер
 renderer = ModelRenderer()
-data = Data("wrls\\aabb_tests.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
-
+data = Data("wrls\\Example2.0.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
 
 renderer.load_models(data.model_list, k=2)
 
