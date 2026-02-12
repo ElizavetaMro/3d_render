@@ -1,5 +1,6 @@
 ## READ .wrl-files from SolidWorks and T-Flex
 from model import Model
+import numpy as np
 import time
 import re
 
@@ -16,7 +17,7 @@ class Data:
 
         flag_point = 0
         flag_index = 0
-        flag_normal = 0
+        # flag_normal = 0
         model_list = []
         color = None
         for line in lines:
@@ -35,15 +36,15 @@ class Data:
                     continue
                 points = ''.join([points, line])
             
-            if line == 'vector [':
-                normal = ''
-                flag_normal = 1
-                continue
-            if flag_normal == 1:
-                if line == ']':
-                    flag_normal = 0
-                    continue
-                normal = ''.join([normal, line])
+            # if line == 'vector [':
+            #     normal = ''
+            #     flag_normal = 1
+            #     continue
+            # if flag_normal == 1:
+            #     if line == ']':
+            #         flag_normal = 0
+            #         continue
+            #     normal = ''.join([normal, line])
 
             if line  == 'coordIndex [':
                 flag_index = 1
@@ -51,17 +52,11 @@ class Data:
             if flag_index == 1:
                 if line == ']':
                     flag_index = 0
-                    points_list = list(map(lambda x: list(map(float, x.split())), points.split(', ')))
-                    normal_list = list(map(lambda x: list(map(float, x.split())), normal.split(', ')))
-                    indexs_list = list(
-                                    map(
-                                        lambda x:
-                                            list(map(int, x[1:].split(', '))) if x[0] == ',' else list(map(int, x.split(', '))),
-                                            indexs.split(', -1')[:-1]
-                                        )
-                                    )
-                    indexs_list = [el for els in indexs_list for el in els]
-                    model_list += [Model(points_list, indexs_list, color, normal_list)]
+                    points_list = np.fromstring(points.replace(', ', ' '), sep=' ', dtype=np.float32).reshape(-1,3)
+                    # В Solid работа с normals сложнее чем в TFLEX, поэтому в этих WRL она не будет реализвана  
+                    # normal_list = np.fromstring(normal.replace(', ', ' '), sep=' ', dtype=np.float32).reshape(-1,3)
+                    indexs_list = np.fromstring( indexs.replace(', -1', ''), sep=', ', dtype=np.float32)
+                    model_list += [Model(points_list, indexs_list, normals= None, color = color)]
                     continue
                 indexs = ' '.join([indexs, line])
         return model_list
@@ -72,10 +67,10 @@ class Data:
 
         flag_point = 0
         flag_index = 0
-        # flag_normal = 0
+        flag_normal = 0
         points = ''
         indexs = ''
-        # normal = ''
+        normal = ''
         transform_dict = {}
         flag_transform = 0
 
@@ -87,7 +82,7 @@ class Data:
         flag_app_def = 0
         name_mat = r"Ml\w*\b"
         name_app = r"App\w*\b"
-
+        
         for line in lines:
             line = line[:-1]
 
@@ -128,6 +123,7 @@ class Data:
 
             #READ COORDS, INDEXS AND NORMALS 
             if line == 'point':
+                normal = ''
                 indexs = ''
                 flag_point = 1
                 continue
@@ -145,27 +141,19 @@ class Data:
                         indexs = line[:-1]
                         flag_index = 0
 
-            # if normal == '':
-            #     if line == 'vector':
-            #         flag_normal = 1
-            #         continue
-                # if flag_normal == 1:
-                #     if line[-1] == ']':
-                #         normal = line[:-1]
-                #         flag_normal = 0
+            if normal == '':
+                if line == 'vector':
+                    flag_normal = 1
+                    continue
+                if flag_normal == 1:
+                    if line[-1] == ']':
+                        normal = line[:-1]
+                        flag_normal = 0
 
-                        points_list = list(map(lambda x: list(map(float, x.split())), points.split(',')))
-                        # normal_list = list(map(lambda x: list(map(float, x.split())), normal.split(',')))
-                        indexs_list = list(
-                                        map(
-                                            lambda x:
-                                                list(map(int, x[1:].split(','))) if x[0] == ',' else list(map(int, x.split(','))),
-                                                indexs.split(',-1')[:-1]
-                                            )
-                                        )
-                    
-                        indexs_list = [el for els in indexs_list for el in els]
-                        model_list += [Model(points_list, indexs_list, color, transform_dict)]  
+                        points_list = np.fromstring(points.replace(',', ' '), sep=' ', dtype=np.float32).reshape(-1,3)
+                        normal_list = np.fromstring(normal.replace(',', ' '), sep=' ', dtype=np.float32).reshape(-1,3)
+                        indexs_list =np.fromstring( indexs.replace(',-1', ''), sep=',', dtype=np.float32)
+                        model_list += [Model(points_list, indexs_list, normal_list, color = color, transform = transform_dict)]  
         return model_list
 
     def parse_wrl(self, file_path):
@@ -179,11 +167,13 @@ class Data:
 if __name__ == "__main__":
 
     start_time = time.time()
-    cProfile.run('Data("wrls\\Detal_23.wrl")', 'profile_stats') # Example2.0.wrl")
-    # print(data.model_list[0].normals)
-    # print(data.model_list[10].normals)
+    data = Data("wrls\\aabb_tests.wrl")
+    print(data.model_list[0].normals)
+    print(data.model_list[1].normals)
+    # cProfile.run('Data("wrls\\Example2.0.wrl")', 'profile_stats') # Example2.0.wrl")
+   
     end_time = time.time()
     execution_time = end_time-start_time
     print(f"{execution_time:.4f}")
-    stats = pstats.Stats('profile_stats')
-    stats.sort_stats('time').print_stats(10)
+    # stats = pstats.Stats('profile_stats')
+    # stats.sort_stats('time').print_stats(10)
