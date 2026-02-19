@@ -1,13 +1,13 @@
 from render import ModelRenderer
 # from model import Model
-from readfile import Data
+from readfile import DataLight
 # import glfw
 import time
 
 start_time = time.time()
 # Создаем рендерер
 renderer = ModelRenderer()
-data = Data("wrls\\Example2.0.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
+data = DataLight("wrls\\meteor2526111.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
 
 renderer.load_models(data.model_list, k=2)
 

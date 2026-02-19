@@ -5,6 +5,8 @@ from OpenGL.GL.shaders import compileProgram, compileShader
 import glfw
 import ctypes
 
+
+
 class ModelRenderer:
     def __init__(self, window_width=800, window_height=600, title="3D Renderer"):
         self.window = None
@@ -12,8 +14,7 @@ class ModelRenderer:
         self.model = None
 
         self.init_glfw(window_width, window_height, title)
-        self.init_shaders() #это зависит от модели
-        
+            
     def init_glfw(self, width, height, title):
         if not glfw.init():
             raise Exception("GLFW initialization failed")
@@ -122,10 +123,13 @@ class ModelRenderer:
             compileShader(vertex_shader, GL_VERTEX_SHADER),
             compileShader(fragment_shader, GL_FRAGMENT_SHADER)
         )
-           
-    def load_models_Light(self, models, k=1.5):
-        """Загрузка нескольких моделей одним батчем"""
+    
+    def load_models(self, models, k=1.5):
+        """Загрузка моделей, определение размерности, выбор работы со светом"""
+        global size_point
+        print(len(models))
         all_vertices = np.concatenate([m.get_vertex_buffer() for m in models])
+        size_point = all_vertices[0].shape[-1]
         step_indices = [0]
         for i in range(len(models)-1):
             new_add = step_indices[-1] + len(models[i].vertices)
@@ -133,9 +137,20 @@ class ModelRenderer:
 
         all_indices = np.concatenate([m.indices + step_indices[i] for i, m in enumerate(models)])
         normalize = max(all_vertices.min(), all_vertices.max(), key=abs)*k
-        normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1, 1, 1, 1])
+        if size_point == 6:
+            normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1])
+            self.init_shaders_Simple()
+        elif size_point == 9:
+            normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1, 1, 1, 1])
+            self.init_shaders_Light()
+        else: print("Ошибка в загрузке модели")
         all_vertices = (all_vertices/normal_vector).astype(np.float32)
+        self.load_buffers(all_vertices, all_indices)
 
+
+    def load_buffers(self, all_vertices, all_indices):
+        """Загрузка нескольких моделей одним батчем"""
+        global size_point
 
         VAO = glGenVertexArrays(1)
         VBO = glGenBuffers(1)
@@ -152,14 +167,15 @@ class ModelRenderer:
         glBufferData(GL_ELEMENT_ARRAY_BUFFER, all_indices.nbytes, all_indices, GL_STATIC_DRAW)
         
         # Атрибуты вершин
-        glEnableVertexAttribArray(0)  # Позиция
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 9 * 4, ctypes.c_void_p(0))
+        glEnableVertexAttribArray(0)
+        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, size_point * 4, ctypes.c_void_p(0))
         
-        glEnableVertexAttribArray(1)  # Нормали
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 9 * 4, ctypes.c_void_p(3 * 4))
+        glEnableVertexAttribArray(1)
+        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, size_point * 4, ctypes.c_void_p(3 * 4))
 
-        glEnableVertexAttribArray(2)  # Цвет
-        glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, 9 * 4, ctypes.c_void_p(6 * 4))
+        if size_point==9:
+            glEnableVertexAttribArray(2)
+            glVertexAttribPointer(2, 3, GL_FLOAT, GL_FALSE, size_point * 4, ctypes.c_void_p(6 * 4))
         
         self.model = {
             'VAO': VAO,
@@ -167,51 +183,9 @@ class ModelRenderer:
             'EBO': EBO,
             'indices': all_indices,
         }
-
-    def load_models_Simple(self, models, k=1.5):
-        """Загрузка нескольких моделей одним батчем"""
-        all_vertices = np.concatenate([m.get_vertex_buffer() for m in models])
-        step_indices = [0]
-        for i in range(len(models)-1):
-            new_add = step_indices[-1] + len(models[i].vertices)
-            step_indices += [new_add]
-
-        all_indices = np.concatenate([m.indices + step_indices[i] for i, m in enumerate(models)])
-        normalize = max(all_vertices.min(), all_vertices.max(), key=abs)*k
-        normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1])
-        all_vertices = (all_vertices/normal_vector).astype(np.float32)
-
-
-        VAO = glGenVertexArrays(1)
-        VBO = glGenBuffers(1)
-        EBO = glGenBuffers(1)
-        
-        glBindVertexArray(VAO)
-        
-        # Вершинный буфер
-        glBindBuffer(GL_ARRAY_BUFFER, VBO)
-        glBufferData(GL_ARRAY_BUFFER, all_vertices.nbytes, all_vertices, GL_STATIC_DRAW)
-        
-        # Буфер индексов
-        glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, EBO)
-        glBufferData(GL_ELEMENT_ARRAY_BUFFER, all_indices.nbytes, all_indices, GL_STATIC_DRAW)
-        
-        # Атрибуты вершин
-        glEnableVertexAttribArray(0)  # Позиция
-        glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 6 * 4, ctypes.c_void_p(0))
-        
-        glEnableVertexAttribArray(1)  # Цвет
-        glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 6 * 4, ctypes.c_void_p(3 * 4))
-        
-        self.model = {
-            'VAO': VAO,
-            'VBO': VBO,
-            'EBO': EBO,
-            'indices': all_indices,
-        }
-
-    # обработка клавиш поворота и escape   
+ 
     def key_callback(self, window, key, scancode, action, mods):
+        """Управление клавишами"""
         global rotation_x, rotation_y
         if action == glfw.PRESS or action == glfw.REPEAT:
             if key == glfw.KEY_UP:
@@ -225,8 +199,8 @@ class ModelRenderer:
             elif key == glfw.KEY_ESCAPE:
                 glfw.set_window_should_close(window, True)
 
-    # обработка приближения и удаления
     def scroll_callback(self, window, xoffset, yoffset):
+        """Управление роликом мышки"""
         global camera_pos
         if yoffset > 0:
            camera_pos[-1] += 0.1
@@ -234,7 +208,7 @@ class ModelRenderer:
 
     def render(self, fov=60, near=0.01, far=2):
         """Основной цикл рендеринга"""
-        global rotation_x, rotation_y, camera_pos
+        global rotation_x, rotation_y, camera_pos, size_point
         rotation_x = 0
         rotation_y = 0
         camera_pos= [0, 0, -1]
@@ -282,10 +256,11 @@ class ModelRenderer:
                 glm.value_ptr(model_matrix)
             )
             
-            # Передаем параметры освещения
-            glUniform3f(glGetUniformLocation(self.shader, "lightPos"), light_pos.x, light_pos.y, light_pos.z)
-            glUniform3f(glGetUniformLocation(self.shader, "lightColor"), light_color.x, light_color.y, light_color.z)
-            glUniform3f(glGetUniformLocation(self.shader, "viewPos"), view_pos.x, view_pos.y, view_pos.z)
+            if size_point==9:
+                # Передаем параметры освещения
+                glUniform3f(glGetUniformLocation(self.shader, "lightPos"), light_pos.x, light_pos.y, light_pos.z)
+                glUniform3f(glGetUniformLocation(self.shader, "lightColor"), light_color.x, light_color.y, light_color.z)
+                glUniform3f(glGetUniformLocation(self.shader, "viewPos"), view_pos.x, view_pos.y, view_pos.z)
 
             # Рендеринг всех моделей
             glBindVertexArray(self.model['VAO'])
