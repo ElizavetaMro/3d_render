@@ -1,13 +1,24 @@
 from render import ModelRenderer
-# from model import Model
 from readfile import DataLight
-# import glfw
+from tkinter import filedialog, Tk
 import time
+
+def select_file():
+    root = Tk()
+    root.withdraw()
+    file_path = filedialog.askopenfilename(
+        title="Выберите WRL файл",
+        filetypes=[("VRML files", "*.wrl")]
+    )
+    return file_path
 
 start_time = time.time()
 # Создаем рендерер
+file_path = select_file()
+print(file_path)
 renderer = ModelRenderer()
-data = DataLight("wrls\\meteor2526111.wrl")#("wrls\\aabb_tests.wrl")#("wrls\\кубхкубхкуб 2мм.wrl")
+if file_path:
+    data = DataLight(file_path)
 
 renderer.load_models(data.model_list, k=2)
 

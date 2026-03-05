@@ -232,9 +232,9 @@ class ModelRenderer:
             model_matrix = glm.rotate(model_matrix, np.radians(rotation_y), glm.vec3(0.0, 0.0, 0.1))
 
             # Источник света справа сверху (белый)
-            light_pos = glm.vec3(10.0, 10.0, 10.0)
+            light_pos = glm.vec3(0.0, 1.0, 1.0)
             light_color = glm.vec3(1.0, 1.0, 1.0)
-            view_pos = glm.vec3(0.0, 0.0, 10.0)
+            view_pos = glm.vec3(10.0, 0.0, 10.0)
 
             glUseProgram(self.shader)
             
