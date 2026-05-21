@@ -4,6 +4,7 @@ from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
 import glfw
 import ctypes
+from sphere import Sphere
 
 
 
@@ -12,6 +13,7 @@ class ModelRenderer:
         self.window = None
         self.shader = None
         self.model = None
+        self.sphere = None  # Список сфер
 
         self.init_glfw(window_width, window_height, title)
             
@@ -28,6 +30,13 @@ class ModelRenderer:
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LESS)
 
+    def add_sphere(self, center, radius=1.0, rays_count=36, color=(1.0, 0.0, 0.0)):
+            """Добавляет сферу лучей"""
+            sphere = Sphere(center, radius, rays_count, color)
+            sphere.setup_buffers()
+            self.sphere = sphere
+            return sphere
+    
     def init_shaders_Simple(self):
         vertex_src = """
         #version 330 core
@@ -146,6 +155,7 @@ class ModelRenderer:
         else: print("Ошибка в загрузке модели")
         all_vertices = (all_vertices/normal_vector).astype(np.float32)
         self.load_buffers(all_vertices, all_indices)
+        return normalize
 
 
     def load_buffers(self, all_vertices, all_indices):
@@ -270,6 +280,14 @@ class ModelRenderer:
                 GL_UNSIGNED_INT, 
                 None
             )
+
+       
+            # Для лучей используем единичную матрицу модели
+            
+            glUniformMatrix4fv(glGetUniformLocation(self.shader, "model"), 1, GL_FALSE, glm.value_ptr(model_matrix))
+            if self.sphere:
+                self.sphere.render(self.shader)
+                
             glfw.swap_buffers(self.window)
             glfw.wait_events()  
 
