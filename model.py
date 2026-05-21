@@ -45,7 +45,8 @@ class Model:
             # Автогенерация цветов если не указаны
             color = np.random.rand(1, 3)
 
-        self.colors = (color*np.ones((len(vertices),3))).astype(np.float32)
+        self.color = color
+        self.colors = (self.color*np.ones((len(vertices),3))).astype(np.float32)
         self.vertex_data = None
 
         

@@ -22,6 +22,13 @@ if file_path:
 
 renderer.load_models(data.model_list, k=2)
 
+# renderer.add_sphere(
+#     center=(0.0, 0.0, 0.1),  # Координата точки
+#     radius=1.0,               # Длина лучей
+#     rays_count=360,            # Количество лучей (36-144 оптимально)
+#     color=(1.0, 0.0, 0.0)     # Красный цвет
+# )
+
 end_time = time.time()
 execution_time = end_time-start_time
 print(f"{execution_time:.4f}")
