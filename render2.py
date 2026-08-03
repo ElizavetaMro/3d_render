@@ -19,7 +19,7 @@ class OpenGLRenderWidget(QOpenGLWidget):
         format.setSamples(4)
         self.setFormat(format)
 
-                # Матрицы (будут инициализированы в initializeGL)
+        # Матрицы (будут инициализированы в initializeGL)
         self.view = None
         self.projection = None
                 

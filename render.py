@@ -2,40 +2,68 @@ import numpy as np
 import glm
 from OpenGL.GL import *
 from OpenGL.GL.shaders import compileProgram, compileShader
-import glfw
-import ctypes
+from PyQt6.QtOpenGLWidgets import QOpenGLWidget
+from PyQt6.QtCore import Qt, QTimer
+from PyQt6.QtGui import QSurfaceFormat, QOpenGLContext
 from sphere import Sphere
 
+class OpenGLRenderWidget(QOpenGLWidget):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.rendering_enabled = False
+        self.setMinimumSize(400, 400)
+        
+        # Настройка формата OpenGL
+        format = QSurfaceFormat()
+        format.setVersion(3, 3)
+        format.setProfile(QSurfaceFormat.OpenGLContextProfile.CoreProfile)
+        format.setDepthBufferSize(24)
+        format.setSamples(4)
+        self.setFormat(format)
+        # Ваш рендерер
+        self.model_renderer = None
 
+    def initializeGL(self, models):
+        """Инициализация OpenGL"""
+        # Инициализируем GLAD или другой загрузчик OpenGL
+    
+        self.model_renderer = ModelRendererQt()
+        self.model_renderer.load_models(models, k=2)
 
-class ModelRenderer:
-    def __init__(self, window_width=800, window_height=600, title="3D Renderer"):
-        self.window = None
-        self.shader = None
-        self.model = None
-        self.sphere = None  # Список сфер
-
-        self.init_glfw(window_width, window_height, title)
-            
-    def init_glfw(self, width, height, title):
-        if not glfw.init():
-            raise Exception("GLFW initialization failed")
-            
-        self.window = glfw.create_window(width, height, title, None, None)
-        if not self.window:
-            glfw.terminate()
-            raise Exception("Window creation failed")
-            
-        glfw.make_context_current(self.window)
+        # Устанавливаем clear color
+        glClearColor(0.2, 0.2, 0.2, 1.0)
         glEnable(GL_DEPTH_TEST)
         glDepthFunc(GL_LESS)
 
-    def add_sphere(self, center, radius=1.0, rays_count=36, color=(1.0, 0.0, 0.0)):
-            """Добавляет сферу лучей"""
-            sphere = Sphere(center, radius, rays_count, color)
-            sphere.setup_buffers()
-            self.sphere = sphere
-            return sphere
+    
+    def resizeGL(self, width, height):
+        """Обработка изменения размера"""
+        glViewport(0, 0, width, height)
+
+    def paintGL(self):
+        """Рендеринг каждого кадра"""
+        # Очищаем буферы
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        # Вызываем рендеринг вашего класса
+        if self.rendering_enabled:
+            if self.model_renderer:
+                self.model_renderer.render()
+    
+    def closeEvent(self, event):
+        """Очистка ресурсов"""
+        self.timer.stop()
+        if self.model_renderer:
+            self.model_renderer.cleanup()
+        super().closeEvent(event)
+
+
+class ModelRendererQt:
+    def __init__(self):
+        self.shader = None
+        self.model = None
+        self.width = 800
+        self.height = 600
+
     
     def init_shaders_Simple(self):
         vertex_src = """
@@ -132,11 +160,11 @@ class ModelRenderer:
             compileShader(vertex_shader, GL_VERTEX_SHADER),
             compileShader(fragment_shader, GL_FRAGMENT_SHADER)
         )
+        print(self.shader)
     
     def load_models(self, models, k=1.5):
         """Загрузка моделей, определение размерности, выбор работы со светом"""
         global size_point
-        print(len(models))
         all_vertices = np.concatenate([m.get_vertex_buffer() for m in models])
         size_point = all_vertices[0].shape[-1]
         step_indices = [0]
@@ -149,17 +177,20 @@ class ModelRenderer:
         if size_point == 6:
             normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1])
             self.init_shaders_Simple()
+            print("init_shaders_Simple()")
+
         elif size_point == 9:
             normal_vector = np.array([normalize, normalize, normalize, 1, 1, 1, 1, 1, 1])
             self.init_shaders_Light()
+            print("init_shaders_Light()")
+
         else: print("Ошибка в загрузке модели")
         all_vertices = (all_vertices/normal_vector).astype(np.float32)
         self.load_buffers(all_vertices, all_indices)
-        return normalize
-
-
+        
     def load_buffers(self, all_vertices, all_indices):
         """Загрузка нескольких моделей одним батчем"""
+        
         global size_point
 
         VAO = glGenVertexArrays(1)
@@ -193,105 +224,60 @@ class ModelRenderer:
             'EBO': EBO,
             'indices': all_indices,
         }
- 
-    def key_callback(self, window, key, scancode, action, mods):
-        """Управление клавишами"""
-        global rotation_x, rotation_y
-        if action == glfw.PRESS or action == glfw.REPEAT:
-            if key == glfw.KEY_UP:
-                rotation_x -= 5
-            elif key == glfw.KEY_DOWN:
-                rotation_x += 5
-            elif key == glfw.KEY_LEFT:
-                rotation_y -= 5
-            elif key == glfw.KEY_RIGHT:
-                rotation_y += 5
-            elif key == glfw.KEY_ESCAPE:
-                glfw.set_window_should_close(window, True)
-
-    def scroll_callback(self, window, xoffset, yoffset):
-        """Управление роликом мышки"""
-        global camera_pos
-        if yoffset > 0:
-           camera_pos[-1] += 0.1
-        else: camera_pos[-1] -= 0.1
 
     def render(self, fov=60, near=0.01, far=2):
         """Основной цикл рендеринга"""
-        global rotation_x, rotation_y, camera_pos, size_point
-        rotation_x = 0
-        rotation_y = 0
+        # Проверка OpenGL контекста в PyQt6
+        context = QOpenGLContext.currentContext()
+        print(f"OpenGL context valid: {context is not None}")
+    
+        if context is None:
+            print("No OpenGL context! Skipping render")
+            return
         camera_pos= [0, 0, -1]
-        glfw.set_key_callback(self.window, self.key_callback)
-        glfw.set_scroll_callback(self.window, self.scroll_callback)
 
-        while not glfw.window_should_close(self.window):
-            glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
+        glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
 
-            # Матрицы вида и проекции
-            view = glm.translate(glm.mat4(1.0), glm.vec3(*camera_pos))
-            # view = glm.rotate(view, np.radians(rotation_x), glm.vec3(1.0, 0.0, 0.0))
-            # view = glm.rotate(view, np.radians(rotation_y), glm.vec3(0.0, 0.0, 0.1))
+        # Матрицы вида и проекции
+        view = glm.translate(glm.mat4(1.0), glm.vec3(*camera_pos))
 
-            projection = glm.perspective(glm.radians(fov), 8/6, near, far)
-            
-            #модель вертится
-            model_matrix = np.identity(4, dtype=np.float32)
-            model_matrix = glm.scale(model_matrix, glm.vec3(1, 1, 1))
-            model_matrix = glm.rotate(model_matrix, np.radians(rotation_x), glm.vec3(1.0, 0.0, 0.0))
-            model_matrix = glm.rotate(model_matrix, np.radians(rotation_y), glm.vec3(0.0, 0.0, 0.1))
+        projection = glm.perspective(glm.radians(fov), 8/6, near, far)
+        
+        # Источник света справа сверху (белый)
+        light_pos = glm.vec3(0.0, 1.0, 1.0)
+        light_color = glm.vec3(1.0, 1.0, 1.0)
+        view_pos = glm.vec3(10.0, 0.0, 10.0)
 
-            # Источник света справа сверху (белый)
-            light_pos = glm.vec3(0.0, 1.0, 1.0)
-            light_color = glm.vec3(1.0, 1.0, 1.0)
-            view_pos = glm.vec3(10.0, 0.0, 10.0)
+        glUseProgram(self.shader)
+        
+        # Передача матриц в шейдер
+        glUniformMatrix4fv(
+            glGetUniformLocation(self.shader, "view"), 
+            1, GL_FALSE, 
+            glm.value_ptr(view)
+        )
+        glUniformMatrix4fv(
+            glGetUniformLocation(self.shader, "projection"), 
+            1, GL_FALSE, 
+            glm.value_ptr(projection)
+        )
+        
+        if size_point==9:
+            # Передаем параметры освещения
+            glUniform3f(glGetUniformLocation(self.shader, "lightPos"), light_pos.x, light_pos.y, light_pos.z)
+            glUniform3f(glGetUniformLocation(self.shader, "lightColor"), light_color.x, light_color.y, light_color.z)
+            glUniform3f(glGetUniformLocation(self.shader, "viewPos"), view_pos.x, view_pos.y, view_pos.z)
 
-            glUseProgram(self.shader)
-            
-            # Передача матриц в шейдер
-            glUniformMatrix4fv(
-                glGetUniformLocation(self.shader, "view"), 
-                1, GL_FALSE, 
-                glm.value_ptr(view)
-            )
-            glUniformMatrix4fv(
-                glGetUniformLocation(self.shader, "projection"), 
-                1, GL_FALSE, 
-                glm.value_ptr(projection)
-            )
-            #пусть все крутится
-            glUniformMatrix4fv(
-                glGetUniformLocation(self.shader, "model"), 
-                1, GL_FALSE, 
-                glm.value_ptr(model_matrix)
-            )
-            
-            if size_point==9:
-                # Передаем параметры освещения
-                glUniform3f(glGetUniformLocation(self.shader, "lightPos"), light_pos.x, light_pos.y, light_pos.z)
-                glUniform3f(glGetUniformLocation(self.shader, "lightColor"), light_color.x, light_color.y, light_color.z)
-                glUniform3f(glGetUniformLocation(self.shader, "viewPos"), view_pos.x, view_pos.y, view_pos.z)
+        # Рендеринг всех моделей
+        glBindVertexArray(self.model['VAO'])
+        glDrawElements(
+            GL_TRIANGLES, 
+            len(self.model['indices']), 
+            GL_UNSIGNED_INT, 
+            None
+        )
 
-            # Рендеринг всех моделей
-            glBindVertexArray(self.model['VAO'])
-            glDrawElements(
-                GL_TRIANGLES, 
-                len(self.model['indices']), 
-                GL_UNSIGNED_INT, 
-                None
-            )
-
-       
-            # Для лучей используем единичную матрицу модели
-            
-            glUniformMatrix4fv(glGetUniformLocation(self.shader, "model"), 1, GL_FALSE, glm.value_ptr(model_matrix))
-            if self.sphere:
-                self.sphere.render(self.shader)
-                
-            glfw.swap_buffers(self.window)
-            glfw.wait_events()  
-
-            
+    
     def cleanup(self):
         """Освобождение ресурсов"""
         glDeleteProgram(self.shader)
@@ -299,4 +285,3 @@ class ModelRenderer:
         glDeleteVertexArrays(1, [self.model['VAO']])
         glDeleteBuffers(1, [self.model['VBO']])
         glDeleteBuffers(1, [self.model['EBO']])
-        glfw.terminate()

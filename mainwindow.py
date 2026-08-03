@@ -148,3 +148,5 @@ class MainWindow(QMainWindow):
                     self.statusBar().showMessage(f"Updated value at row {row+1}")
             except ValueError:
                 pass
+
+    
